@@ -17,11 +17,10 @@ function simulate(β::Vector{T} where T<:Real, α::Real, X::Matrix{T} where T<:R
     N, J = size(X)
     @assert length(β) == J "μ is a $(length(β)) vector and X is a $Nx$J matrix."
     @assert α > 0 "σ must be a positive scalar."
-    μ = X * β
-    λ = exp.(-μ .* α)
+    λ = lambda(β, α, X)
     Time = rand.(Weibull.(α, λ))
     Censor = rand.(Weibull.(α, λ))
     Indicator = Time .> Censor
-    #Time = ifelse.(Indicator, Time, Censor)
+    Time = ifelse.(Indicator, Censor, Time)
     return (Time, Indicator, λ, β, α)
 end

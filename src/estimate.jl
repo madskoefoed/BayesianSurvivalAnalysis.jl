@@ -37,16 +37,17 @@ function estimate(Time::Vector{T} where T<:Real,
     a[1] = α.θ #rand(α)
 
     Ts = copy(Time)
+    Ss = findall(Indicator .== 1)
     for i in 2:draws
         # Propose new values
         b[i, :], a[i] = proposal(b[i-1, :], a[i-1], β, α, Ts, X)
-        
+
         # Time - update missing values (i.e. censored values)
-        for n in 1:N
-            if Indicator[n] == 1
-                λ = exp(-dot(X[n, :], b[i, :]) * a[i])
-                Ts[n] = rand(Truncated(Weibull(a[i], λ), Time[n], Inf))
-            end
+        #λ = lambda(b[i, :], a[i], X[Ss, :])
+        #Ts[Ss] = rand.(Truncated.(Weibull.(a[i], λ), Time[Ss], Inf))
+        for n in Ss
+            λ = exp(-dot(X[n, :], b[i, :]) * a[i])
+            Ts[n] = rand(Truncated(Weibull(a[i], λ), Time[n], Inf))
         end
     end
     return (b, a)
@@ -64,24 +65,25 @@ function loglik(b::Vector, a::AbstractFloat, Time::Vector, X::Matrix)
     return ll
 end
 
-function proposal(b, a, β, α, Time, X)
-    # Existing log-likelihood
-    pra = sum(logpdf(α, a))     # Log-prior for alpha
-    prb = sum(logpdf(β, b))     # Log-prior for beta
-    ll  = loglik(b, a, Time, X) # Log-likelihood
-    po  = pra + prb + ll        # Log-posterior
+function logprior(prior, x)
+    return sum(logpdf(prior, x))
+end
 
-    # New log-likelihood
+function proposal(b, a, β, α, Time, X)
+    # Existing
+    pr = logprior(α, a) + logprior(β, b) # Log-prior
+    ll = loglik(b, a, Time, X)           # Log-likelihood
+    po = pr + ll                         # Log-posterior
+
+    # Proposal
     a1 = exp(rand(Normal(log(a), 0.05))) # Proposal for alpha
     b1 = rand.(Normal.(b, 0.05))         # Proposal for beta
 
-    pra = sum(logpdf(α, a1))      # Log-prior for alpha
-    prb = sum(logpdf(β, b1))      # Log-prior for beta
-    ll  = loglik(b1, a1, Time, X) # Log-likelihood
-    po1 = pra + prb + ll          # Log-posterior
-    
-    ratio = exp(po1 - po)         # Log-posterior
-    if rand() < ratio
+    pr1 = logprior(α, a1) + logprior(β, b1) # Log-prior
+    ll1 = loglik(b1, a1, Time, X)           # Log-likelihood
+    po1 = pr1 + ll1                         # Log-posterior
+
+    if log(rand()) < (po1 - po)
         return (b1, a1)
     else
         return (b, a)
@@ -91,7 +93,7 @@ end
 N = 1_000;
 X = [ones(N) repeat(0:1, inner = convert(Int, N/2))];
 Time, Indicator, λ, β, α = simulate([-0.5, 1.0], 1.0, X);
-model = estimate(Time, Indicator, X, MvNormal([0, 0], I), Exponential(1), 5_000)
+model = estimate(Time, Indicator, X, MvNormal([0, 0], 100I), Exponential(1), 10_000);
 
 mean(Time[X[:, 2] .== 0])
 mean(Time[X[:, 2] .== 1])
@@ -103,6 +105,9 @@ using StatsPlots
 #histogram(model[1])
 plot(model[1], color = [:blue :red])
 hline!(β', color = [:blue :red], label = false)
+
+#plot(model[2])
+#hline!([α])
 
 #Fit = [mean(Weibull(model[2][i], exp(-dot(X[n, :], model[1][i, :]) * model[2][i]))) for n in 1:N, i in 501:1500];
 #Fit = mean(Fit, dims = 2);
