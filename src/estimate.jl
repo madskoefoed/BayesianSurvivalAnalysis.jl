@@ -77,7 +77,7 @@ function proposal(b, a, β, α, Time, X)
 
     # Proposal
     a1 = exp(rand(Normal(log(a), 0.05))) # Proposal for alpha
-    b1 = rand.(Normal.(b, 0.05))         # Proposal for beta
+    b1 = rand.(Normal.(b, 0.1))         # Proposal for beta
 
     pr1 = logprior(α, a1) + logprior(β, b1) # Log-prior
     ll1 = loglik(b1, a1, Time, X)           # Log-likelihood
@@ -89,28 +89,3 @@ function proposal(b, a, β, α, Time, X)
         return (b, a)
     end
 end
-
-N = 1_000;
-X = [ones(N) repeat(0:1, inner = convert(Int, N/2))];
-Time, Indicator, λ, β, α = simulate([-0.5, 1.0], 1.0, X);
-model = estimate(Time, Indicator, X, MvNormal([0, 0], 100I), Exponential(1), 10_000);
-
-mean(Time[X[:, 2] .== 0])
-mean(Time[X[:, 2] .== 1])
-
-#X = ones(N, 1);
-#Time, Indicator = simulate([0.0], 1.0, X);
-#model = estimate(Time, Indicator, X, MvNormal([0], 10_000*I), Exponential(1))
-using StatsPlots
-#histogram(model[1])
-plot(model[1], color = [:blue :red])
-hline!(β', color = [:blue :red], label = false)
-
-#plot(model[2])
-#hline!([α])
-
-#Fit = [mean(Weibull(model[2][i], exp(-dot(X[n, :], model[1][i, :]) * model[2][i]))) for n in 1:N, i in 501:1500];
-#Fit = mean(Fit, dims = 2);
-
-#plot(Time)
-#plot!(Fit)
