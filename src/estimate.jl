@@ -33,8 +33,8 @@ function estimate(Time::Vector{T} where T<:Real,
     b = zeros(draws, J)
     a = zeros(draws)
 
-    b[1, :] = β.μ #rand(β)
-    a[1] = α.θ #rand(α)
+    b[1, :] = β.μ
+    a[1] = α.θ
 
     Ts = copy(Time)
     Ss = findall(Indicator .== 1)
@@ -43,8 +43,6 @@ function estimate(Time::Vector{T} where T<:Real,
         b[i, :], a[i] = proposal(b[i-1, :], a[i-1], β, α, Ts, X)
 
         # Time - update missing values (i.e. censored values)
-        #λ = lambda(b[i, :], a[i], X[Ss, :])
-        #Ts[Ss] = rand.(Truncated.(Weibull.(a[i], λ), Time[Ss], Inf))
         for n in Ss
             λ = exp(-dot(X[n, :], b[i, :]) * a[i])
             Ts[n] = rand(Truncated(Weibull(a[i], λ), Time[n], Inf))
@@ -77,7 +75,7 @@ function proposal(b, a, β, α, Time, X)
 
     # Proposal
     a1 = exp(rand(Normal(log(a), 0.05))) # Proposal for alpha
-    b1 = rand.(Normal.(b, 0.1))         # Proposal for beta
+    b1 = rand.(Normal.(b, 0.05))         # Proposal for beta
 
     pr1 = logprior(α, a1) + logprior(β, b1) # Log-prior
     ll1 = loglik(b1, a1, Time, X)           # Log-likelihood
